@@ -170,7 +170,55 @@ class HazardMapFrame(ttk.Frame):
                 photo_paths.append(dest)
                 ttk.Label(photo_frame, text=os.path.basename(dest)).pack(side='left', padx=2)
         ttk.Button(win, text="Add Photo", command=add_photo).grid(row=2, column=4)
-        # TODO: Display mitigation notes (list) and allow adding notes
+
+        # Mitigation notes section
+        notes_frame = ttk.LabelFrame(win, text="Mitigation Notes")
+        notes_frame.grid(row=3, column=0, columnspan=4, pady=5, sticky='nsew')
+        cols = ("Date", "Author", "Note")
+        notes_tree = ttk.Treeview(notes_frame, columns=cols, show='headings', height=4)
+        for col in cols:
+            notes_tree.heading(col, text=col)
+            notes_tree.column(col, width=100 if col != 'Note' else 220)
+        notes_tree.pack(fill='both', expand=True)
+
+        def load_notes():
+            for r in notes_tree.get_children():
+                notes_tree.delete(r)
+            conn = self.db_connect(); c = conn.cursor()
+            c.execute("SELECT date,author,note_text FROM MitigationNotes WHERE hazard_id=? ORDER BY date", (hazard_id,))
+            for d,a,n in c.fetchall():
+                notes_tree.insert('', 'end', values=(d.split('T')[0], a, n))
+            conn.close()
+
+        def add_note():
+            nw = tk.Toplevel(win)
+            nw.title("Add Note")
+            ttk.Label(nw, text="Author:").grid(row=0, column=0)
+            a_var = tk.StringVar(); ttk.Entry(nw, textvariable=a_var).grid(row=0, column=1)
+            ttk.Label(nw, text="Note:").grid(row=1, column=0)
+            t_txt = tk.Text(nw, width=40, height=4); t_txt.grid(row=1, column=1)
+            photo_var = tk.StringVar()
+            def add_note_photo():
+                p = filedialog.askopenfilename(filetypes=[("Images","*.jpg *.png *.jpeg")])
+                if p:
+                    dest = os.path.join("images", f"note_{hazard_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}" + os.path.splitext(p)[1])
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with open(p, 'rb') as fr, open(dest, 'wb') as fw:
+                        fw.write(fr.read())
+                    photo_var.set(dest)
+                    ttk.Label(nw, text=os.path.basename(dest)).grid(row=2, column=1)
+            ttk.Button(nw, text="Add Photo", command=add_note_photo).grid(row=2, column=0)
+
+            def save_note():
+                conn = self.db_connect(); c = conn.cursor()
+                c.execute("INSERT INTO MitigationNotes(hazard_id,note_text,photo_path,author,date) VALUES(?,?,?,?,?)",
+                          (hazard_id, t_txt.get('1.0','end').strip(), photo_var.get() or None, a_var.get(), datetime.now().isoformat()))
+                conn.commit(); conn.close()
+                nw.destroy(); load_notes()
+            ttk.Button(nw, text="Save", command=save_note).grid(row=3, column=1, pady=5)
+
+        ttk.Button(notes_frame, text="Add Note", command=add_note).pack(pady=2)
+        load_notes()
         # Save button
         def save():
             conn = self.db_connect(); c = conn.cursor()

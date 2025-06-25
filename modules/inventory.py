@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 import sqlite3, os
 from datetime import datetime
 from reportlab.pdfgen import canvas
@@ -30,7 +30,7 @@ class InventoryFrame(ttk.Frame):
         cols = ("ID","Name","Category","Location","Qty","Unit","Threshold","Supplier")
         self.tree = ttk.Treeview(self, columns=cols, show='headings', selectmode='browse')
         for col in cols:
-            self.tree.heading(col, text=col)
+            self.tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c, False))
             self.tree.column(col, width=100 if col=='Name' else 60)
         self.tree.pack(fill='both', expand=True)
 
@@ -38,6 +38,33 @@ class InventoryFrame(ttk.Frame):
         self.tree.tag_configure('low', background='#ffcccc')
 
         self.load_items()
+
+    def send_low_stock_email(self, message):
+        addr = os.getenv('ALERT_EMAIL')
+        if not addr:
+            return
+        from email.message import EmailMessage
+        import smtplib
+        email = EmailMessage()
+        email['Subject'] = 'Low Stock Alert'
+        email['From'] = addr
+        email['To'] = addr
+        email.set_content(message)
+        try:
+            with smtplib.SMTP('localhost') as s:
+                s.send_message(email)
+        except Exception as e:
+            print('Failed to send alert email:', e)
+
+    def sort_by_column(self, col, descending):
+        data = [(self.tree.set(child, col), child) for child in self.tree.get_children('')]
+        if col in ('ID', 'Qty', 'Threshold'):
+            data.sort(key=lambda t: int(t[0]), reverse=descending)
+        else:
+            data.sort(key=lambda t: t[0].lower(), reverse=descending)
+        for index, (_, child) in enumerate(data):
+            self.tree.move(child, '', index)
+        self.tree.heading(col, command=lambda c=col: self.sort_by_column(c, not descending))
 
     def db_connect(self):
         return sqlite3.connect(DB_FILE)
@@ -50,16 +77,25 @@ class InventoryFrame(ttk.Frame):
         conn = self.db_connect(); c = conn.cursor()
         term = self.search_var.get().strip()
         if term:
-            c.execute("SELECT item_id,name,category,location,quantity,unit,threshold,supplier FROM Items WHERE name LIKE ? OR category LIKE ?",
-                      (f'%{term}%', f'%{term}%'))
+            c.execute(
+                "SELECT item_id,name,category,location,quantity,unit,threshold,supplier FROM Items WHERE name LIKE ? OR category LIKE ?",
+                (f'%{term}%', f'%{term}%')
+            )
         else:
             c.execute("SELECT item_id,name,category,location,quantity,unit,threshold,supplier FROM Items")
-        for item in c.fetchall():
+        rows = c.fetchall()
+        low_stock = []
+        for item in rows:
             tags = ()
             if item[4] <= item[6]:  # quantity <= threshold
                 tags = ('low',)
+                low_stock.append((item[1], item[4], item[6]))
             self.tree.insert('', 'end', values=item, tags=tags)
         conn.close()
+        if low_stock:
+            msg = "\n".join([f"{n}: {q} remaining (threshold {t})" for n, q, t in low_stock])
+            messagebox.showwarning("Low Stock Alert", f"The following items are low:\n{msg}")
+            self.send_low_stock_email(msg)
 
     def add_item(self):
         self._item_form()
@@ -210,7 +246,11 @@ class InventoryFrame(ttk.Frame):
         path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV","*.csv")])
         if not path: return
         conn = self.db_connect(); c = conn.cursor()
-        c.execute("SELECT * FROM Items")
+        term = self.search_var.get().strip()
+        if term:
+            c.execute("SELECT * FROM Items WHERE name LIKE ? OR category LIKE ?", (f'%{term}%', f'%{term}%'))
+        else:
+            c.execute("SELECT * FROM Items")
         rows = c.fetchall()
         with open(path, 'w', newline='') as f:
             import csv; w = csv.writer(f)
@@ -219,19 +259,45 @@ class InventoryFrame(ttk.Frame):
         conn.close(); messagebox.showinfo("Export CSV", f"Exported {len(rows)} items to {path}")
 
     def export_items_pdf(self):
+        start = simpledialog.askstring("Start Date", "Start date YYYY-MM-DD (leave blank for all)")
+        if start is None:
+            return
+        end = simpledialog.askstring("End Date", "End date YYYY-MM-DD (leave blank for all)")
+        if end is None:
+            return
         path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF","*.pdf")])
-        if not path: return
+        if not path:
+            return
+        conn = self.db_connect(); cur = conn.cursor()
+        sql = """SELECT t.transaction_id, i.name, t.person, t.out_date, t.actual_return_date, t.status
+                 FROM Transactions t JOIN Items i ON t.item_id=i.item_id"""
+        cond = []
+        params = []
+        if start:
+            cond.append("date(t.out_date) >= ?")
+            params.append(start)
+        if end:
+            cond.append("date(t.out_date) <= ?")
+            params.append(end)
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        sql += " ORDER BY t.out_date"
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+        conn.close()
+
         c = canvas.Canvas(path, pagesize=letter)
         width, height = letter
         c.setFont("Helvetica", 14)
-        c.drawString(40, height - 40, "Inventory Report")
+        title = "Equipment Transactions"
+        c.drawString(40, height - 40, title)
         y = height - 80
-        conn = self.db_connect(); cur = conn.cursor()
-        cur.execute("SELECT item_id,name,quantity,threshold,supplier FROM Items")
-        for iid,name,qty,thr,sup in cur.fetchall():
-            text = f"ID:{iid} | {name} | Qty:{qty} | Thr:{thr} | Sup:{sup}"
+        for tid, name, person, out_d, ret_d, status in rows:
+            ret = ret_d.split('T')[0] if ret_d else ''
+            text = f"{out_d.split('T')[0]} | {name} | {person} | {status} | {ret}"
             c.drawString(40, y, text)
             y -= 20
             if y < 40:
                 c.showPage(); y = height - 40
-        conn.close(); c.save(); messagebox.showinfo("Export PDF", f"PDF saved to {path}")
+        c.save()
+        messagebox.showinfo("Export PDF", f"PDF saved to {path}")

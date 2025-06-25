@@ -5,7 +5,7 @@ It is built with Tkinter and stores data in a local SQLite database. The main fe
 
 - **Hazard Mapping & Reporting** – log hazard locations on an interactive map, filter them by severity and status, and export reports.
 - **Patrol Scheduling & Incident Logging** – maintain patrol shifts and record incidents with optional photos and location data.
-- **Equipment & Resource Tracking** – manage inventory items, record check‑outs/returns, and view transaction history.
+- **Equipment & Resource Tracking** – manage inventory items with supplier info, record check‑outs/returns with photos, highlight low stock and optionally email alerts (set `ALERT_EMAIL` env var), and view transaction history.
 
 ## Requirements
 
@@ -31,3 +31,10 @@ python main.py
 ```
 
 The database is created automatically (`safety_app.db`) on first run.
+
+Set the `ALERT_EMAIL` environment variable if you want low-stock warnings sent to that address (requires a local SMTP server).
+
+### Inventory Reports
+
+- CSV export respects the current search filters.
+- PDF export prompts for a date range and includes all check-in/out transactions for that period.
