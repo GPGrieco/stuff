@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Reports</h2>
+<ul>
+  <li><a href="{{ url_for('reports.csv_export', name='patrols') }}">Patrols CSV</a></li>
+  <li><a href="{{ url_for('reports.csv_export', name='hazards') }}">Hazards CSV</a></li>
+  <li><a href="{{ url_for('reports.csv_export', name='maintenance') }}">Maintenance CSV</a></li>
+  <li><a href="{{ url_for('reports.csv_export', name='trailcams') }}">Trail Cams CSV</a></li>
+</ul>
+<ul>
+  <li><a href="{{ url_for('reports.pdf_export', name='patrols') }}">Patrols PDF</a></li>
+  <li><a href="{{ url_for('reports.pdf_export', name='hazards') }}">Hazards PDF</a></li>
+  <li><a href="{{ url_for('reports.pdf_export', name='maintenance') }}">Maintenance PDF</a></li>
+  <li><a href="{{ url_for('reports.pdf_export', name='trailcams') }}">Trail Cams PDF</a></li>
+</ul>
+{% endblock %}

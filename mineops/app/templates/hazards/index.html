@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Hazards</h2>
+<a class="btn btn-primary" href="{{ url_for('hazards.add') }}">Add Hazard</a>
+<table class="table mt-3">
+  <tr><th>Date</th><th>Location</th><th>Severity</th><th>Status</th></tr>
+  {% for h in hazards %}
+  <tr>
+    <td>{{ h.date_reported.strftime('%Y-%m-%d') }}</td>
+    <td>{{ h.location }}</td>
+    <td>{{ h.severity }}</td>
+    <td>{{ h.status }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

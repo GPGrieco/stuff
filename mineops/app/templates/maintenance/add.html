@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Add Maintenance Log</h2>
+<form method="post" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label class="form-label">Equipment</label>
+    <input class="form-control" name="equipment">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Issue</label>
+    <textarea class="form-control" name="issue"></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Done?</label>
+    <input class="form-check-input" type="checkbox" name="done">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Notes</label>
+    <textarea class="form-control" name="notes"></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Photo</label>
+    <input class="form-control" type="file" name="photo">
+  </div>
+  <button class="btn btn-primary" type="submit">Save</button>
+</form>
+{% endblock %}
