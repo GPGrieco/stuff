@@ -31,3 +31,7 @@ python main.py
 ```
 
 The database is created automatically (`safety_app.db`) on first run.
+
+## MineOps Web App
+
+This repository also contains **MineOps**, a Dockerized Flask web application for logging patrols, hazards, maintenance and trail cam photos. See `mineops/README.md` for setup instructions.

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Patrol Logs</h2>
+<a class="btn btn-primary" href="{{ url_for('patrols.add') }}">Add Patrol</a>
+<table class="table mt-3">
+  <tr><th>Date</th><th>Area</th><th>Notes</th></tr>
+  {% for p in patrols %}
+  <tr>
+    <td>{{ p.date.strftime('%Y-%m-%d') }}</td>
+    <td>{{ p.area }}</td>
+    <td>{{ p.notes }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

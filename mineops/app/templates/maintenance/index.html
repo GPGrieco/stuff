@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Maintenance Logs</h2>
+<a class="btn btn-primary" href="{{ url_for('maintenance.add') }}">Add Log</a>
+<table class="table mt-3">
+  <tr><th>Date</th><th>Equipment</th><th>Issue</th><th>Done</th></tr>
+  {% for m in logs %}
+  <tr>
+    <td>{{ m.date_reported.strftime('%Y-%m-%d') }}</td>
+    <td>{{ m.equipment }}</td>
+    <td>{{ m.issue }}</td>
+    <td>{{ 'Yes' if m.done else 'No' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

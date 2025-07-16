@@ -1,0 +1,9 @@
+version: '3'
+services:
+  mineops:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./instance:/app/instance
+      - ./app/uploads:/app/app/uploads
